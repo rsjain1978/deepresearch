@@ -1,0 +1,18 @@
+---
+description: This rule file shows you should use Tavily search API to search information on web.
+globs: 
+---
+Parse response of tavily search as follows:
+
+    # Extract content from results
+    combined_content = []
+    sources = []
+
+    for result in search_results['results']:
+        if result.get('content'):
+            combined_content.append(result['content'])
+        if result.get('url') and result.get('title'):
+            sources.append({
+                'url': result['url'],
+                'title': result['title']
+            })

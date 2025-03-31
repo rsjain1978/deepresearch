@@ -1,0 +1,27 @@
+---
+description: This rule file shows we should invoke OpenAI API for any text generation or reasoning activity using AI
+globs: 
+---
+For text prompts use type of API call: You will use only this type of API call:
+
+from openai import AsyncOpenAI
+client = AsyncOpenAI()
+
+completion = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": "Write a haiku about recursion in programming."
+        }
+    ]
+)
+
+4. gpt-4o is a valid model name, do not use gpt-4
+
+use json mode for openai api calls. response_format={"type": "json_object"}
+
+print(completion.choices[0].message)
+
+always create a generic and modular LLM call function which you can reuse for different tasks. 

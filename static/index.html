@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Research</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Primary D3.js source -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Add marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Backup D3.js source in case primary fails -->
+    <script>
+        // Check if D3 loaded correctly
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof d3 === 'undefined') {
+                console.warn('D3.js failed to load from primary source, trying backup...');
+                const backupScript = document.createElement('script');
+                backupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js';
+                backupScript.onload = function() {
+                    console.log('D3.js loaded from backup source');
+                    checkD3();
+                };
+                document.head.appendChild(backupScript);
+            } else {
+                console.log('D3.js loaded successfully from primary source');
+                checkD3();
+            }
+            
+            function checkD3() {
+                try {
+                    // Log D3 version to confirm it's working
+                    console.log('D3.js version:', d3.version);
+                    
+                    // Test basic D3 functionality
+                    const testSelection = d3.select('body');
+                    if (testSelection) {
+                        console.log('D3 selection working properly');
+                    }
+                } catch (e) {
+                    console.error('Error testing D3:', e);
+                }
+            }
+        });
+    </script>
+    <style>
+        .node {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1px;
+        }
+        .node text {
+            font-size: 10px;
+            font-family: sans-serif;
+        }
+        .sidebar-icon {
+            width: 20px;
+            height: 20px;
+            color: #CBD5E0;
+            margin-right: 10px;
+        }
+        .active-section {
+            display: block;
+        }
+        .inactive-section {
+            display: none;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #CBD5E0;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background-color: rgba(55, 65, 81, 0.7);
+        }
+        .nav-item.active {
+            background-color: #3B82F6;
+            color: white;
+        }
+        .nav-item svg {
+            flex-shrink: 0;
+        }
+        
+        /* Markdown styling */
+        .markdown-content h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #1e40af;
+        }
+        .markdown-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: #1e3a8a;
+        }
+        .markdown-content ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .markdown-content ol {
+            list-style-type: decimal;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .markdown-content li {
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #93c5fd;
+            padding-left: 1rem;
+            margin-left: 0;
+            margin-right: 0;
+            margin-bottom: 1rem;
+            color: #4b5563;
+            font-style: italic;
+            background-color: #eff6ff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+        }
+        .markdown-content code {
+            font-family: monospace;
+            background-color: #f3f4f6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .markdown-content pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .markdown-content pre code {
+            background-color: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+        .markdown-content table th,
+        .markdown-content table td {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+        .markdown-content table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        .markdown-content hr {
+            margin: 1.5rem 0;
+            border: 0;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        /* Full screen mode for knowledge graph */
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 50;
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .fullscreen-mode #knowledgeGraph {
+            height: calc(100vh - 100px) !important;
+            width: 100% !important;
+        }
+        
+        /* Sidebar collapse/expand transition */
+        .sidebar-collapsed {
+            width: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+        }
+        
+        .main-content-expanded {
+            margin-left: 0 !important;
+        }
+        
+        /* Control buttons */
+        .control-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .control-button:hover {
+            background-color: #f3f4f6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-button svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #4b5563;
+        }
+        
+        /* Floating button to show sidebar when collapsed */
+        .sidebar-toggle-float {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 40;
+            background-color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-toggle-float:hover {
+            background-color: #f3f4f6;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .sidebar-toggle-bottom {
+            margin-top: auto;
+            padding: 0.75rem;
+            color: #CBD5E0;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-toggle-bottom:hover {
+            background-color: rgba(55, 65, 81, 0.7);
+        }
+        
+        .sidebar-toggle-bottom svg {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar Navigation -->
+        <div class="bg-gray-800 w-56 p-4 flex flex-col flex-shrink-0">
+            <div class="text-white text-xl font-bold mb-8 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Deep Research
+            </div>
+            
+            <nav class="space-y-2 flex-grow">
+                <button id="nav-upload" class="nav-item active w-full text-left" onclick="showSection('upload')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload
+                </button>
+                
+                <button id="nav-knowledge" class="nav-item w-full text-left" onclick="showSection('knowledge')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Knowledge Graph
+                </button>
+                
+                <button id="nav-search" class="nav-item w-full text-left" onclick="showSection('search')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                </button>
+            </nav>
+            
+            <div class="text-gray-400 text-sm mt-4">
+                <p>© 2023 Deep Research</p>
+                <p>AI-Powered Document Analysis</p>
+            </div>
+            
+            <button id="toggleSidebar" class="sidebar-toggle-bottom mt-4" title="Hide Sidebar">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-auto">
+            <!-- Document Upload Section -->
+            <section id="upload-section" class="active-section flex items-center justify-center min-h-[80vh] p-6">
+                <div class="w-full max-w-4xl">
+                    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Upload Documents</h1>
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <form id="uploadForm" class="space-y-6">
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-16 text-center">
+                                <input type="file" id="fileInput" class="hidden" multiple>
+                                <label for="fileInput" class="cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-lg text-gray-600 mb-2">Drag and drop your files here</p>
+                                    <p class="text-sm text-gray-500 mb-4">or click to browse</p>
+                                    <p class="text-xs text-gray-400">Supported files: PDF, TXT, MD, JSON</p>
+                                </label>
+                            </div>
+                            <div id="fileList" class="space-y-2"></div>
+                            <button type="submit" class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 transition duration-200 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                                <span>Upload Documents</span>
+                            </button>
+                        </form>
+                        <div id="uploadStatus" class="mt-6 space-y-4"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Knowledge Graph Section -->
+            <section id="knowledge-section" class="inactive-section h-screen">
+                <div class="flex justify-between items-center p-4">
+                    <h1 class="text-2xl font-bold">Knowledge Graph</h1>
+                    <button onclick="deleteKnowledgeGraph()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete Knowledge Base
+                    </button>
+                </div>
+                <div class="flex-1 h-[calc(100vh-80px)]">
+                    <div class="flex justify-between items-center p-2 border-b">
+                        <div class="flex items-center space-x-2">
+                            <button onclick="refreshKnowledgeGraph()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mr-2">
+                                Refresh Graph
+                            </button>
+                            <button id="toggleFullscreen" class="control-button" title="Toggle Fullscreen">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="fullscreen-icon">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m9 0h4.5m-4.5 0v4.5m4.5 7.5v4.5m0-4.5h-4.5m-9 0H3.75m4.5 0v4.5" />
+                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="exit-fullscreen-icon hidden">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V3.75M9 9h6m0 0v5.25M9 9H3.75m0 0v5.25M3.75 14.25h5.25m9-5.25h-5.25m5.25 0v5.25M9 14.25h5.25m0 0V9" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Click and drag nodes to reposition them
+                        </div>
+                    </div>
+                    <div id="knowledgeGraph" class="relative w-full h-[calc(100vh-140px)]"></div>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section id="search-section" class="inactive-section p-6">
+                <h1 class="text-2xl font-bold mb-6">Search Knowledge Base</h1>
+                <div class="bg-white p-6 rounded-lg shadow-md w-full">
+                    <div class="space-y-6">
+                        <div class="flex flex-col max-w-4xl mx-auto gap-4">
+                            <div class="flex items-center gap-4">
+                                <input type="text" id="searchInput" placeholder="Enter your search query" 
+                                    class="flex-grow p-4 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button id="searchButton" class="bg-blue-600 text-white py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-200 text-lg font-medium">
+                                    Search
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="useKgToggle" 
+                                        class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        checked>
+                                    <span class="ml-2 text-sm font-medium text-gray-900">Use Knowledge Graph</span>
+                                </label>
+                                <div class="ml-2 group relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 hover:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div class="hidden group-hover:block absolute z-10 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg -translate-x-1/2 left-1/2 bottom-full mb-2">
+                                        When enabled, search will include knowledge graph relationships and connections between entities
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="similarQueries" class="flex flex-wrap gap-2 mt-2"></div>
+                        </div>
+                        <div id="searchResults" class="mt-8 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Navigation Functions
+        function showSection(sectionId) {
+            console.log(`DEBUGGING: Showing section ${sectionId}`);
+            
+            // Hide all sections
+            document.getElementById('upload-section').classList.add('inactive-section');
+            document.getElementById('upload-section').classList.remove('active-section');
+            document.getElementById('knowledge-section').classList.add('inactive-section');
+            document.getElementById('knowledge-section').classList.remove('active-section');
+            document.getElementById('search-section').classList.add('inactive-section');
+            document.getElementById('search-section').classList.remove('active-section');
+            
+            // Show selected section
+            document.getElementById(`${sectionId}-section`).classList.add('active-section');
+            document.getElementById(`${sectionId}-section`).classList.remove('inactive-section');
+            
+            // Update navigation active states
+            document.getElementById('nav-upload').classList.remove('active');
+            document.getElementById('nav-knowledge').classList.remove('active');
+            document.getElementById('nav-search').classList.remove('active');
+            document.getElementById(`nav-${sectionId}`).classList.add('active');
+            
+            // Exit fullscreen mode if active when changing sections
+            if (document.getElementById('knowledge-section').classList.contains('fullscreen-mode')) {
+                toggleFullscreen();
+            }
+            
+            // Refresh knowledge graph if that section is shown
+            if (sectionId === 'knowledge') {
+                console.log("DEBUGGING: Knowledge section activated");
+
+                // Enter fullscreen mode when opening the knowledge graph
+                document.getElementById('knowledge-section').classList.add('fullscreen-mode');
+
+                setTimeout(() => {
+                    console.log("DEBUGGING: Refreshing knowledge graph after delay");
+                    document.getElementById('knowledgeGraph').innerHTML = `
+                        <div class="absolute inset-0 flex items-center justify-center bg-blue-100">
+                            <div class="text-center">
+                                <p class="text-lg text-blue-800 font-bold">Loading Knowledge Graph...</p>
+                                <p class="text-sm text-blue-600 mt-2">Retrieving and visualizing your data...</p>
+                            </div>
+                        </div>
+                    `;
+                    refreshKnowledgeGraph();
+                }, 100);
+            }
+
+        }
+
+        // Knowledge Graph Visualization
+        function initializeGraph() {
+            // Clear any existing SVG first
+            document.getElementById('knowledgeGraph').innerHTML = '';
+            
+            // Get the dimensions of the graph container
+            const graphContainer = document.getElementById('knowledgeGraph');
+            const width = graphContainer.clientWidth;
+            const height = graphContainer.clientHeight;
+            console.log("Container dimensions:", width, height);
+            
+            // Create SVG element that fills the entire space
+            const svg = d3.select('#knowledgeGraph')
+                .append('svg')
+                .style('width', '100%')
+                .style('height', '100%')
+                .style('display', 'block');
+
+            // Add a container group that will be transformed during zoom
+            const containerGroup = svg.append("g")
+                .attr("class", "container");
+
+            // Set up zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 8])
+                .on('zoom', (event) => {
+                    containerGroup.attr('transform', event.transform);
+                });
+            
+            svg.call(zoom);
+
+            const simulation = d3.forceSimulation()
+                .force('link', d3.forceLink().id(d => d.id).distance(150))
+                .force('charge', d3.forceManyBody().strength(-1000))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(50));
+
+            return { svg, containerGroup, simulation, width, height };
+        }
+
+        // Add window resize handler to make the graph responsive
+        window.addEventListener('resize', () => {
+            const graphContainer = document.getElementById('knowledgeGraph');
+            if (graphContainer) {
+                const svg = graphContainer.querySelector('svg');
+                if (svg) {
+                    const width = graphContainer.clientWidth;
+                    const height = graphContainer.clientHeight;
+                    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                    // Trigger graph re-render with new dimensions
+                    if (window.graphData) {
+                        updateGraph(window.graphData);
+                    }
+                }
+            }
+        });
+
+        // Debug section in the knowledge graph area
+        function addDebugPanel(data) {
+            const debugHtml = `
+                <div class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border border-blue-300 w-96 z-50 text-xs overflow-auto" style="max-height: 300px;">
+                    <h3 class="font-bold text-sm mb-2 flex justify-between">
+                        <span>Debug Info</span>
+                        <button id="closeDebug" class="text-gray-500 hover:text-gray-700">✕</button>
+                    </h3>
+                    <div>
+                        <p><strong>Data type:</strong> ${typeof data}</p>
+                        <p><strong>Has nodes:</strong> ${data.hasOwnProperty('nodes')}</p>
+                        <p><strong>Has links:</strong> ${data.hasOwnProperty('links')}</p>
+                        <p><strong>Node count:</strong> ${data.nodes ? data.nodes.length : 0}</p>
+                        <p><strong>Link count:</strong> ${data.links ? data.links.length : 0}</p>
+                        <div class="mt-2">
+                            <details>
+                                <summary class="cursor-pointer text-blue-600">View raw data</summary>
+                                <pre class="mt-2 bg-gray-100 p-2 rounded overflow-auto max-h-40">${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                        <button id="generateMockGraph" class="mt-3 bg-green-600 text-white px-2 py-1 text-xs rounded">Generate Mock Graph</button>
+                    </div>
+                </div>
+            `;
+            
+            const debugElement = document.createElement('div');
+            debugElement.innerHTML = debugHtml;
+            document.body.appendChild(debugElement.firstElementChild);
+            
+            document.getElementById('closeDebug').addEventListener('click', () => {
+                document.body.removeChild(document.querySelector('.fixed.bottom-4.right-4'));
+            });
+            
+            document.getElementById('generateMockGraph').addEventListener('click', () => {
+                const mockData = generateMockGraphData();
+                updateGraph(mockData);
+            });
+        }
+
+        // Generate mock data for testing
+        function generateMockGraphData() {
+            console.log("DEBUGGING: generateMockGraphData called");
+            
+            // Create a simple but visually interesting mock graph
+            const nodes = [
+                { id: "person-1", name: "Person 1", type: "person" },
+                { id: "person-2", name: "Person 2", type: "person" },
+                { id: "organization-1", name: "Organization 1", type: "organization" },
+                { id: "location-1", name: "Location 1", type: "location" },
+                { id: "concept-1", name: "Concept 1", type: "concept" },
+                { id: "date-1", name: "Date 1", type: "date" }
+            ];
+            
+            const links = [
+                { source: "person-1", target: "organization-1", type: "WORKS_AT" },
+                { source: "person-2", target: "organization-1", type: "WORKS_AT" },
+                { source: "person-1", target: "location-1", type: "LIVES_IN" },
+                { source: "organization-1", target: "location-1", type: "LOCATED_IN" },
+                { source: "person-1", target: "concept-1", type: "KNOWS_ABOUT" },
+                { source: "person-1", target: "date-1", type: "BORN_ON" }
+            ];
+            
+            console.log("DEBUGGING Mock data generated: ", 
+                {nodeCount: nodes.length, linkCount: links.length, 
+                 firstNode: nodes[0], firstLink: links[0]});
+            
+            return { nodes, links };
+        }
+
+        // Extended color map for different node types with a more professional color palette
+        function getNodeColorMap() {
+            return {
+                'person': '#3B82F6',       // Blue
+                'organization': '#10B981', // Emerald
+                'location': '#8B5CF6',     // Purple
+                'concept': '#F59E0B',      // Amber
+                'date': '#EC4899',         // Pink
+                'financial_instrument': '#6366F1', // Indigo
+                'price': '#059669',        // Green
+                'amount': '#DC2626',       // Red
+                'shares': '#2563EB',       // Blue
+                'regulation': '#7C3AED',   // Violet
+                'policy': '#2DD4BF',       // Teal
+                'plan': '#F97316',         // Orange
+                'company': '#4F46E5',      // Indigo
+                'transaction_code': '#0EA5E9', // Sky
+                'option_type': '#8B5CF6',  // Purple
+                'unknown': '#6B7280'       // Gray
+            };
+        }
+
+        // Get color for a node type
+        function getNodeColor(type) {
+            if (!type) return getNodeColorMap().unknown;
+            
+            // Normalize the type to lowercase
+            const normalizedType = type.toLowerCase();
+            const colorMap = getNodeColorMap();
+            
+            // Check for direct match
+            if (colorMap[normalizedType]) {
+                return colorMap[normalizedType];
+            }
+            
+            // Check for partial matches
+            for (const key in colorMap) {
+                if (normalizedType.includes(key) || key.includes(normalizedType)) {
+                    return colorMap[key];
+                }
+            }
+            
+            // Return default color
+            return colorMap.unknown;
+        }
+
+        async function refreshKnowledgeGraph() {
+            try {
+                // Add a loading indicator
+                document.getElementById('knowledgeGraph').innerHTML = `
+                    <div class="flex h-full items-center justify-center">
+                        <div class="text-center">
+                            <svg class="animate-spin mx-auto h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="mt-3 text-blue-600 font-medium">Loading knowledge graph...</p>
+                        </div>
+                    </div>
+                `;
+
+                const response = await fetch('/api/knowledge-graph');
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Knowledge graph API response:", data);
+
+                // Initialize the graph
+                const { svg, containerGroup, simulation, width, height } = initializeGraph();
+
+                // Draw links
+                const links = containerGroup.selectAll('line')
+                    .data(data.links)
+                    .enter()
+                    .append('line')
+                    .attr('class', 'link')
+                    .attr('stroke', '#999')
+                    .attr('stroke-opacity', 0.6);
+
+                // Draw nodes
+                const nodes = containerGroup.selectAll('circle')
+                    .data(data.nodes)
+                    .enter()
+                    .append('circle')
+                    .attr('class', 'node')
+                    .attr('r', 5)
+                    .attr('fill', d => getNodeColor(d.type))
+                    .call(d3.drag()
+                        .on('start', dragstarted)
+                        .on('drag', dragged)
+                        .on('end', dragended));
+
+                // Add node labels
+                const labels = containerGroup.selectAll('text')
+                    .data(data.nodes)
+                    .enter()
+                    .append('text')
+                    .text(d => d.name)
+                    .attr('font-size', '10px')
+                    .attr('dx', 12)
+                    .attr('dy', 4);
+
+                // Update positions on each tick
+                simulation.nodes(data.nodes)
+                    .on('tick', () => {
+                        links
+                            .attr('x1', d => d.source.x)
+                            .attr('y1', d => d.source.y)
+                            .attr('x2', d => d.target.x)
+                            .attr('y2', d => d.target.y);
+
+                        nodes
+                            .attr('cx', d => d.x)
+                            .attr('cy', d => d.y);
+
+                        labels
+                            .attr('x', d => d.x)
+                            .attr('y', d => d.y);
+                    });
+
+                simulation.force('link')
+                    .links(data.links);
+
+                // Drag functions
+                function dragstarted(event, d) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+
+                function dragged(event, d) {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }
+
+                function dragended(event, d) {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }
+
+            } catch (error) {
+                console.error('Error fetching knowledge graph:', error);
+                document.getElementById('knowledgeGraph').innerHTML = `
+                    <div class="flex h-full items-center justify-center">
+                        <div class="text-center max-w-lg">
+                            <div class="bg-red-50 p-6 rounded-lg shadow">
+                                <p class="text-red-800 font-medium text-lg mb-3">Error loading knowledge graph</p>
+                                <p class="text-gray-700 mb-4">${error.message}</p>
+                                <div class="flex justify-center">
+                                    <button onclick="refreshKnowledgeGraph()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                        Try Again
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Simpler function to build a graph structure from statistics
+        function buildKnowledgeGraphFromStats(data) {
+            console.log("Starting graph construction from data:", data);
+            
+            // Initialize empty graph structure
+            let nodes = [];
+            let links = [];
+            let nodeMap = new Map(); // Track created nodes
+            
+            // Extract node types and counts
+            let nodeTypes = [];
+            
+            // Try multiple approaches to find node data
+            
+            // First, check if we have a direct nodes array
+            if (data.nodes && Array.isArray(data.nodes)) {
+                console.log("Using nodes array directly from data");
+                // Process nodes to remove duplicates before returning
+                return deduplicateGraphData(data);
+            }
+            
+            // First, try to find any explicit node types data
+            if (data.hasOwnProperty("Node Types")) {
+                console.log("Found 'Node Types' in data");
+                nodeTypes = Object.entries(data["Node Types"]).map(([type, count]) => ({ type, count }));
+            } 
+            // Try entities property
+            else if (data.hasOwnProperty("entities") && Array.isArray(data.entities)) {
+                console.log("Found 'entities' array in data");
+                // Extract entities but handle duplicates
+                const entitiesWithDuplicates = data.entities.map((entity, i) => ({
+                    id: entity.id || `entity-${i+1}`,
+                    name: entity.name || entity.label || `Entity ${i+1}`,
+                    type: entity.type || entity.category || "unknown"
+                }));
+                
+                // Deduplicate entities based on name and type
+                nodes = deduplicateNodes(entitiesWithDuplicates);
+                
+                // Count type statistics for display
+                const typeCounts = {};
+                nodes.forEach(node => {
+                    typeCounts[node.type] = (typeCounts[node.type] || 0) + 1;
+                });
+                nodeTypes = Object.entries(typeCounts).map(([type, count]) => ({ type, count }));
+            }
+            // Try to find any property that seems to contain entity data 
+            else {
+                console.log("Searching for entity-like data in response");
+                // Look for array properties that might contain entities
+                for (const key in data) {
+                    if (Array.isArray(data[key]) && data[key].length > 0 && 
+                        typeof data[key][0] === 'object' && (
+                        data[key][0].hasOwnProperty('type') || 
+                        data[key][0].hasOwnProperty('name') || 
+                        data[key][0].hasOwnProperty('id'))) {
+                        
+                        console.log(`Found potential entity array in property: ${key}`);
+                        const entitiesWithDuplicates = data[key].map((item, i) => ({
+                            id: item.id || `${key.toLowerCase()}-${i+1}`,
+                            name: item.name || item.label || `${key} ${i+1}`,
+                            type: item.type || item.category || key
+                        }));
+                        
+                        // Deduplicate entities
+                        nodes = deduplicateNodes(entitiesWithDuplicates);
+                        
+                        // Count type statistics
+                        const typeCounts = {};
+                        nodes.forEach(node => {
+                            typeCounts[node.type] = (typeCounts[node.type] || 0) + 1;
+                        });
+                        nodeTypes = Object.entries(typeCounts).map(([type, count]) => ({ type, count }));
+                        break;
+                    }
+                }
+            }
+            
+            // If we still haven't found node data, but have statistics
+            if (nodes.length === 0 && nodeTypes.length > 0) {
+                console.log("Creating nodes from type statistics");
+                // Create nodes for each type based on counts
+                nodeTypes.forEach(({ type, count }) => {
+                    for (let i = 0; i < count; i++) {
+                        const nodeId = `${type.toLowerCase()}-${i+1}`;
+                        const node = {
+                            id: nodeId,
+                            name: `${type} ${i+1}`,
+                            type: type
+                        };
+                        nodes.push(node);
+                        nodeMap.set(nodeId, node);
+                    }
+                });
+            }
+            
+            // Handle relationship data
+            
+            // First, check if we have a direct links or edges array
+            if (data.links && Array.isArray(data.links)) {
+                console.log("Using links array directly from data");
+                links = deduplicateLinks(data.links, nodes);
+            }
+            else if (data.edges && Array.isArray(data.edges)) {
+                console.log("Using edges array directly from data");
+                // Convert edges to links format and deduplicate
+                const rawLinks = data.edges.map(edge => ({
+                    source: edge.source || edge.from || edge.start,
+                    target: edge.target || edge.to || edge.end,
+                    type: edge.type || edge.label || "connected_to"
+                }));
+                links = deduplicateLinks(rawLinks, nodes);
+            }
+            // Try relationships property
+            else if (data.hasOwnProperty("relationships") && Array.isArray(data.relationships)) {
+                console.log("Found 'relationships' array in data");
+                const rawLinks = data.relationships.map(rel => ({
+                    source: rel.source || rel.from || rel.start_node || rel.source_id,
+                    target: rel.target || rel.to || rel.end_node || rel.target_id,
+                    type: rel.type || rel.label || "connected_to"
+                }));
+                links = deduplicateLinks(rawLinks, nodes);
+            }
+            else {
+                // Try to extract relationship types from statistics
+                let relationshipTypes = [];
+                
+                if (data.hasOwnProperty("Relationship Types")) {
+                    console.log("Found 'Relationship Types' in data");
+                    relationshipTypes = Object.entries(data["Relationship Types"])
+                        .map(([type, count]) => ({ type, count }));
+                } else {
+                    // Look for relationship data anywhere in the object
+                    for (const key in data) {
+                        if (typeof data[key] === 'object' && data[key] !== null && 
+                            (key.toLowerCase().includes('relation') || key.toLowerCase().includes('edge'))) {
+                            console.log(`Found potential relationship data in property: ${key}`);
+                            relationshipTypes = Object.entries(data[key])
+                                .map(([type, count]) => ({ type, count }));
+                            break;
+                        }
+                    }
+                }
+                
+                // Create a simplified network structure if we have nodes
+                if (nodes.length > 0) {
+                    console.log("Creating links between nodes");
+                    // If we have relationship info, use it
+                    if (relationshipTypes.length > 0) {
+                        let linkIndex = 0;
+                        relationshipTypes.forEach(({ type, count }) => {
+                            for (let i = 0; i < count; i++) {
+                                // Create a deterministic but distributed pattern of connections
+                                const sourceIndex = linkIndex % nodes.length;
+                                const targetIndex = (sourceIndex + 1 + (linkIndex % (nodes.length - 1))) % nodes.length;
+                                
+                                if (sourceIndex !== targetIndex) {
+                                    links.push({
+                                        source: nodes[sourceIndex].id,
+                                        target: nodes[targetIndex].id,
+                                        type: type
+                                    });
+                                }
+                                linkIndex++;
+                            }
+                        });
+                    } else {
+                        // Create a simple connected graph
+                        console.log("No relationship data found, creating simple connected graph");
+                        for (let i = 0; i < nodes.length; i++) {
+                            const nextIndex = (i + 1) % nodes.length;
+                            links.push({
+                                source: nodes[i].id,
+                                target: nodes[nextIndex].id,
+                                type: "connected_to"
+                            });
+                            
+                            // Add some cross-connections
+                            if (nodes.length > 3 && i % 2 === 0) {
+                                const targetIndex = (i + 2) % nodes.length;
+                                links.push({
+                                    source: nodes[i].id,
+                                    target: nodes[targetIndex].id,
+                                    type: "related_to"
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Deduplicate the generated links
+                    links = deduplicateLinks(links, nodes);
+                }
+            }
+            
+            console.log(`Constructed graph with ${nodes.length} nodes and ${links.length} links (after deduplication)`);
+            return { nodes, links };
+        }
+        
+        // Helper function to deduplicate nodes based on name and type
+        function deduplicateNodes(nodes) {
+            const uniqueNodes = [];
+            const nodeMap = new Map(); // Maps node unique key to its index in uniqueNodes
+            
+            nodes.forEach(node => {
+                // Create a unique key for the node based on normalized name and type
+                const normName = node.name.toLowerCase().trim();
+                const normType = node.type.toLowerCase().trim();
+                const key = `${normName}|${normType}`;
+                
+                if (!nodeMap.has(key)) {
+                    // This is a new unique node
+                    nodeMap.set(key, uniqueNodes.length);
+                    uniqueNodes.push({
+                        ...node,
+                        originalIds: [node.id], // Store original ID
+                        mentions: 1 // Count occurrences
+                    });
+                } else {
+                    // This is a duplicate, update the existing node
+                    const index = nodeMap.get(key);
+                    const existingNode = uniqueNodes[index];
+                    
+                    // Add original ID if not already included
+                    if (!existingNode.originalIds.includes(node.id)) {
+                        existingNode.originalIds.push(node.id);
+                    }
+                    
+                    // Increment mention count
+                    existingNode.mentions = (existingNode.mentions || 1) + 1;
+                }
+            });
+            
+            // Update node names to show mention counts for duplicates
+            uniqueNodes.forEach(node => {
+                if (node.mentions > 1) {
+                    node.name = `${node.name} (${node.mentions})`;
+                }
+            });
+            
+            return uniqueNodes;
+        }
+        
+        // Helper function to deduplicate links
+        function deduplicateLinks(links, nodes) {
+            const uniqueLinks = [];
+            const linkMap = new Set(); // Track unique link combinations
+            const nodeIdMap = new Map(); // Map from original IDs to normalized IDs
+            
+            // Create a map of all possible IDs (original and alternates) to the main node ID
+            nodes.forEach(node => {
+                if (node.originalIds) {
+                    node.originalIds.forEach(id => {
+                        nodeIdMap.set(id, node.id);
+                    });
+                }
+                // Always map the main ID to itself
+                nodeIdMap.set(node.id, node.id);
+            });
+            
+            links.forEach(link => {
+                // Normalize source and target by looking up any alternate IDs
+                const source = nodeIdMap.get(link.source) || link.source;
+                const target = nodeIdMap.get(link.target) || link.target;
+                const type = link.type || "connected_to";
+                
+                // Create a unique key for this link (bidirectional)
+                const keyForward = `${source}|${target}|${type}`;
+                const keyBackward = `${target}|${source}|${type}`;
+                
+                // Only add if we haven't seen this link before
+                if (!linkMap.has(keyForward) && !linkMap.has(keyBackward)) {
+                    linkMap.add(keyForward);
+                    uniqueLinks.push({
+                        source: source,
+                        target: target,
+                        type: type
+                    });
+                }
+            });
+            
+            return uniqueLinks;
+        }
+        
+        // Master function to deduplicate an entire graph data structure
+        function deduplicateGraphData(graphData) {
+            if (!graphData || !graphData.nodes || !graphData.links) {
+                return graphData;
+            }
+            
+            // First deduplicate the nodes
+            const deduplicatedNodes = deduplicateNodes(graphData.nodes);
+            
+            // Then deduplicate the links based on the deduplicated nodes
+            const deduplicatedLinks = deduplicateLinks(graphData.links, deduplicatedNodes);
+            
+            return {
+                nodes: deduplicatedNodes,
+                links: deduplicatedLinks
+            };
+        }
+
+        // Knowledge Graph using Canvas instead of SVG
+        function updateGraph(data) {
+            console.log("DEBUGGING: updateGraph called with Canvas approach:", 
+                {hasData: !!data, hasNodes: data?.nodes?.length > 0, 
+                 hasLinks: data?.links?.length > 0});
+            
+            try {
+                // First check if we have valid data
+                if (!data || !data.nodes || data.nodes.length === 0) {
+                    document.getElementById('knowledgeGraph').innerHTML = 
+                        '<div class="flex h-full items-center justify-center text-gray-500">No knowledge graph data available. Please upload documents first.</div>';
+                    return;
+                }
+                
+                // Deduplicate the graph data one more time just to be safe
+                data = deduplicateGraphData(data);
+                
+                // Make container very visible for debugging with plain HTML
+                const container = document.getElementById('knowledgeGraph');
+                container.innerHTML = `
+                    <div style="position: relative; width: 100%; height: 100%; border: 1px solid #e2e8f0; background-color: #f8fafc;">
+                        <canvas id="graphCanvas" width="800" height="600" style="display: block;"></canvas>
+                    </div>
+                `;
+                
+                // Get the canvas element
+                const canvas = document.getElementById('graphCanvas');
+                if (!canvas) {
+                    throw new Error("Canvas element not found!");
+                }
+                
+                // Adjust canvas size to fill container
+                canvas.width = container.clientWidth - 2; // Account for border
+                canvas.height = container.clientHeight - 2;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    throw new Error("Could not get 2D context from canvas!");
+                }
+
+                // Store node positions globally for interactivity
+                window.nodePositions = {};
+                window.activeNodeId = null;
+                window.isDragging = false;
+                
+                // Enable anti-aliasing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Clear canvas with a subtle gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(1, '#f8fafc');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw title with shadow
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetY = 2;
+                ctx.fillStyle = '#1e40af';
+                ctx.font = 'bold 24px Inter, system-ui, -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Knowledge Graph Visualization', canvas.width / 2, 40);
+                ctx.restore();
+                
+                // Draw node type legend with modern styling
+                const nodeTypes = [...new Set(data.nodes.map(node => node.type))];
+                let legendY = 80;
+                const legendX = 30;
+                const legendPadding = 10;
+                const legendWidth = 180;
+                
+                // Draw legend background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetY = 2;
+                ctx.beginPath();
+                ctx.roundRect(legendX - legendPadding, 60, legendWidth, (nodeTypes.length * 30) + 20, 8);
+                ctx.fill();
+                ctx.shadowColor = 'transparent';
+                
+                // Draw legend title
+                ctx.fillStyle = '#1e40af';
+                ctx.font = 'bold 14px Inter, system-ui, -apple-system, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('Entity Types', legendX + 5, legendY - 5);
+                legendY += 20;
+                
+                // Draw legend items
+                nodeTypes.forEach(type => {
+                    const color = getNodeColor(type);
+                    
+                    // Draw color circle with shadow
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                    ctx.shadowBlur = 4;
+                    ctx.beginPath();
+                    ctx.arc(legendX + 10, legendY, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    ctx.restore();
+                    
+                    // Draw type label
+                    ctx.fillStyle = '#374151';
+                    ctx.font = '14px Inter, system-ui, -apple-system, sans-serif';
+                    ctx.fillText(type.charAt(0).toUpperCase() + type.slice(1), legendX + 25, legendY + 4);
+                    
+                    legendY += 30;
+                });
+                
+                // Draw links with gradient and animation
+                data.links.forEach(link => {
+                    const sourcePos = nodePositions[link.source];
+                    const targetPos = nodePositions[link.target];
+                    
+                    if (sourcePos && targetPos) {
+                        // Create gradient for link
+                        const gradient = ctx.createLinearGradient(
+                            sourcePos.x, sourcePos.y,
+                            targetPos.x, targetPos.y
+                        );
+                        gradient.addColorStop(0, 'rgba(203, 213, 225, 0.6)');
+                        gradient.addColorStop(1, 'rgba(148, 163, 184, 0.6)');
+                        
+                        // Draw link line with gradient
+                        ctx.beginPath();
+                        ctx.moveTo(sourcePos.x, sourcePos.y);
+                        ctx.lineTo(targetPos.x, targetPos.y);
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        // Draw animated dots along the link
+                        const time = Date.now() * 0.001;
+                        const dotPos = {
+                            x: sourcePos.x + (targetPos.x - sourcePos.x) * (0.5 + Math.sin(time) * 0.5),
+                            y: sourcePos.y + (targetPos.y - sourcePos.y) * (0.5 + Math.sin(time) * 0.5)
+                        };
+                        
+                        ctx.beginPath();
+                        ctx.arc(dotPos.x, dotPos.y, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.fill();
+                        ctx.strokeStyle = '#94a3b8';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        
+                        // Draw link label with background
+                        const midX = (sourcePos.x + targetPos.x) / 2;
+                        const midY = (sourcePos.y + targetPos.y) / 2;
+                        
+                        // Draw label background
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                        ctx.shadowBlur = 4;
+                        ctx.beginPath();
+                        const labelWidth = ctx.measureText(link.type).width + 16;
+                        ctx.roundRect(midX - labelWidth/2, midY - 10, labelWidth, 20, 10);
+                        ctx.fill();
+                        ctx.restore();
+                        
+                        // Draw link label text
+                        ctx.fillStyle = '#475569';
+                        ctx.font = '12px Inter, system-ui, -apple-system, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(link.type, midX, midY + 4);
+                    }
+                });
+                
+                // Draw nodes with enhanced styling
+                data.nodes.forEach(node => {
+                    const pos = nodePositions[node.id];
+                    if (!pos) return;
+                    
+                    const isActive = window.activeNodeId === node.id;
+                    const nodeRadius = node.radius || baseNodeRadius;
+                    
+                    // Draw node shadow
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowOffsetY = 4;
+                    
+                    // Draw node circle with gradient
+                    const gradient = ctx.createRadialGradient(
+                        pos.x, pos.y, 0,
+                        pos.x, pos.y, nodeRadius
+                    );
+                    const nodeColor = getNodeColor(node.type);
+                    gradient.addColorStop(0, nodeColor);
+                    gradient.addColorStop(1, adjustColor(nodeColor, -20));
+                    
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, nodeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Add highlight effect for active nodes
+                    if (isActive) {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        
+                        // Draw outer glow
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, nodeRadius + 4, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                    
+                    ctx.restore();
+                    
+                    // Draw node label with background
+                    const labelY = pos.y + nodeRadius + 15;
+                    const label = node.name;
+                    const labelWidth = ctx.measureText(label).width + 16;
+                    
+                    // Draw label background
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                    ctx.shadowBlur = 4;
+                    ctx.beginPath();
+                    ctx.roundRect(pos.x - labelWidth/2, labelY - 10, labelWidth, 20, 10);
+                    ctx.fill();
+                    ctx.restore();
+                    
+                    // Draw node label
+                    ctx.fillStyle = '#1f2937';
+                    ctx.font = 'bold 12px Inter, system-ui, -apple-system, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, pos.x, labelY + 4);
+                    
+                    // Draw node type label
+                    ctx.fillStyle = '#6b7280';
+                    ctx.font = '11px Inter, system-ui, -apple-system, sans-serif';
+                    ctx.fillText(node.type, pos.x, labelY + 24);
+                });
+                
+                // Draw info box with stats
+                const infoBoxWidth = 400;
+                const infoBoxHeight = 40;
+                const infoBoxX = (canvas.width - infoBoxWidth) / 2;
+                const infoBoxY = canvas.height - 50;
+                
+                // Count total mentions
+                const totalMentions = data.nodes.reduce((sum, node) => sum + (node.mentions || 1), 0);
+                
+                // Draw info box background with gradient
+                ctx.save();
+                const infoGradient = ctx.createLinearGradient(infoBoxX, infoBoxY, infoBoxX, infoBoxY + infoBoxHeight);
+                infoGradient.addColorStop(0, '#f0f9ff');
+                infoGradient.addColorStop(1, '#e0f2fe');
+                
+                ctx.fillStyle = infoGradient;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetY = 2;
+                ctx.beginPath();
+                ctx.roundRect(infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, 12);
+                ctx.fill();
+                ctx.restore();
+                
+                // Draw stats text
+                ctx.fillStyle = '#1e40af';
+                ctx.font = '14px Inter, system-ui, -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    `${data.nodes.length} unique entities (${totalMentions} total mentions) • ${data.links.length} relationships`,
+                    canvas.width / 2,
+                    infoBoxY + 25
+                );
+                
+                // Request animation frame for continuous updates
+                if (window.isDragging) {
+                    requestAnimationFrame(renderGraph);
+                }
+                
+                console.log("DEBUGGING: Canvas graph rendering complete");
+                
+            } catch (error) {
+                console.error("Error rendering canvas graph:", error);
+                document.getElementById('knowledgeGraph').innerHTML = `
+                    <div class="flex h-full items-center justify-center text-red-500">
+                        <div class="text-center max-w-lg">
+                            <p class="font-bold mb-2 text-xl">Error rendering knowledge graph</p>
+                            <p>${error.message}</p>
+                            <button onclick="refreshKnowledgeGraph()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Try Again
+                            </button>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        // Helper function to adjust color brightness
+        function adjustColor(color, amount) {
+            const hex = color.replace('#', '');
+            const num = parseInt(hex, 16);
+            const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+            const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+            const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        }
+
+        // Function to handle mouse down event (start dragging)
+        function handleMouseDown(e) {
+            const canvas = document.getElementById('graphCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Check if mouse is over any node
+            for (const nodeId in window.nodePositions) {
+                const pos = window.nodePositions[nodeId];
+                const dx = mouseX - pos.x;
+                const dy = mouseY - pos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Find the node to get its custom radius
+                const node = window.graphData.nodes.find(n => n.id === nodeId);
+                const nodeRadius = node ? (node.radius || window.nodeRadius) : window.nodeRadius;
+                
+                if (distance <= nodeRadius) {
+                    // Found a node under the cursor
+                    window.activeNodeId = nodeId;
+                    window.isDragging = true;
+                    canvas.style.cursor = 'grabbing';
+                    return;
+                }
+            }
+        }
+
+        // Function to handle mouse move event (drag node)
+        function handleMouseMove(e) {
+            if (!window.isDragging || !window.activeNodeId) return;
+            
+            const canvas = document.getElementById('graphCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Update the position of the active node
+            window.nodePositions[window.activeNodeId] = {
+                x: mouseX,
+                y: mouseY
+            };
+            
+            // Redraw the graph
+            renderGraph();
+        }
+
+        // Function to handle mouse up event (stop dragging)
+        function handleMouseUp(e) {
+            if (window.isDragging) {
+                window.isDragging = false;
+                window.activeNodeId = null;
+                document.getElementById('graphCanvas').style.cursor = 'default';
+            }
+        }
+
+        // Document Upload
+        document.getElementById('fileInput').addEventListener('change', updateFileList);
+
+        function updateFileList() {
+            const fileInput = document.getElementById('fileInput');
+            const fileList = document.getElementById('fileList');
+            const files = Array.from(fileInput.files);
+            
+            if (files.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+            
+            fileList.innerHTML = files.map((file, index) => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="text-sm text-gray-600">${file.name}</span>
+                    </div>
+                    <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            const fileInput = document.getElementById('fileInput');
+            const dt = new DataTransfer();
+            const files = Array.from(fileInput.files);
+            
+            files.forEach((file, i) => {
+                if (i !== index) {
+                    dt.items.add(file);
+                }
+            });
+            
+            fileInput.files = dt.files;
+            updateFileList();
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('uploadStatus');
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            
+            if (!fileInput.files.length) {
+                statusDiv.innerHTML = '<div class="p-4 bg-red-100 text-red-700 rounded-lg">Please select at least one file</div>';
+                return;
+            }
+
+            submitButton.disabled = true;
+            statusDiv.innerHTML = '';
+            const files = Array.from(fileInput.files);
+            
+            for (const [index, file] of files.entries()) {
+                const fileStatusId = `file-status-${index}`;
+                statusDiv.innerHTML += `
+                    <div id="${fileStatusId}" class="p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium text-gray-700">${file.name}</span>
+                            <span class="text-sm text-blue-600">Processing...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+                `;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        document.getElementById(fileStatusId).innerHTML = `
+                            <div class="p-4 bg-green-100 text-green-700 rounded-lg">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="font-medium">${file.name}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <p class="text-sm mt-2">Pages processed: ${result.num_pages}</p>
+                                <p class="text-sm">Chunks created for KG: ${result.num_chunks}</p>
+                                <div class="mt-2 pt-2 border-t border-green-200">
+                                    <p class="text-sm">Knowledge Graph Updates:</p>
+                                    <p class="text-sm">• Nodes created: ${result.graph_stats.num_nodes}</p>
+                                    <p class="text-sm">• Relationships created: ${result.graph_stats.num_edges}</p>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        throw new Error(result.detail);
+                    }
+                } catch (error) {
+                    document.getElementById(fileStatusId).innerHTML = `
+                        <div class="p-4 bg-red-100 text-red-700 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-medium">${file.name}</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                            <p class="text-sm mt-1">Error: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            submitButton.disabled = false;
+            
+            // Auto switch to knowledge graph after all files are processed
+            if (files.length > 0) {
+                setTimeout(() => showSection('knowledge'), 1500);
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchButton').addEventListener('click', async () => {
+            performSearch();
+        });
+
+        // Add toggle functionality
+        document.getElementById('useKgToggle').addEventListener('change', function(e) {
+            // Store the toggle state
+            localStorage.setItem('useKgToggle', e.target.checked);
+            
+            // Provide visual feedback
+            const toggleLabel = e.target.parentElement.querySelector('span');
+            if (e.target.checked) {
+                toggleLabel.classList.add('text-blue-600');
+            } else {
+                toggleLabel.classList.remove('text-blue-600');
+            }
+        });
+
+        // Restore toggle state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const useKgToggle = document.getElementById('useKgToggle');
+            const savedState = localStorage.getItem('useKgToggle');
+            if (savedState !== null) {
+                useKgToggle.checked = savedState === 'true';
+                // Update label color if checked
+                if (useKgToggle.checked) {
+                    useKgToggle.parentElement.querySelector('span').classList.add('text-blue-600');
+                }
+            }
+        });
+
+        // Search input - trigger search on Enter key
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Handle clicking on similar query tags
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('similar-query-tag')) {
+                const queryText = e.target.getAttribute('data-query');
+                if (queryText) {
+                    document.getElementById('searchInput').value = queryText;
+                    performSearch();
+                }
+            }
+        });
+
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return;
+
+            try {
+                document.getElementById('searchResults').innerHTML = 'Searching...';
+                document.getElementById('similarQueries').innerHTML = '';
+                
+                const useKg = document.getElementById('useKgToggle').checked;
+                
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        query: query,
+                        use_kg: useKg
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Clear previous results
+                document.getElementById('searchResults').innerHTML = '';
+                document.getElementById('similarQueries').innerHTML = '';
+                
+                // Display similar queries as buttons
+                if (data.similar_queries && data.similar_queries.length > 0) {
+                    const similarQueriesHtml = data.similar_queries
+                        .filter(q => q !== query) // Don't show the original query
+                        .map(q => `
+                            <button 
+                                onclick="document.getElementById('searchInput').value='${q.replace(/'/g, "\\'")}'; performSearch();"
+                                class="m-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 text-sm"
+                            >
+                                ${q}
+                            </button>
+                        `).join('');
+                    document.getElementById('similarQueries').innerHTML = similarQueriesHtml;
+                }
+
+                // Parse and display the answer using marked
+                let resultsHtml = '';
+                if (data.answer) {
+                    resultsHtml += `<div class="markdown-content mb-6">${marked.parse(data.answer)}</div>`;
+                }
+
+                // Display individual results
+                if (data.results && data.results.length > 0) {
+                    // Sort results by relevance score in descending order
+                    const sortedResults = [...data.results].sort((a, b) => 
+                        (b.relevance_score || 0) - (a.relevance_score || 0)
+                    );
+                    
+                    resultsHtml += '<div class="space-y-4">';
+                    sortedResults.forEach((result, index) => {
+                        const sourceId = `source-${index}`;
+                        const sourceName = result.metadata?.source || 'Unknown Source';
+                        resultsHtml += `
+                            <div class="p-4 bg-white rounded-lg shadow">
+                                <div class="flex items-center justify-between cursor-pointer" 
+                                     onclick="document.getElementById('${sourceId}').classList.toggle('hidden')">
+                                    <div>
+                                        <span class="font-bold">${sourceName}</span>
+                                        <span class="text-sm text-gray-600 ml-2">
+                                            (${result.source_type}${result.relevance_score ? ` - Relevance: ${(result.relevance_score * 100).toFixed(1)}%` : ''})
+                                        </span>
+                                    </div>
+                                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" 
+                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                                <div id="${sourceId}" class="mt-2 pt-2 border-t border-gray-200 hidden">
+                                    <div class="markdown-content prose">
+                                        ${marked.parse(result.text)}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    resultsHtml += '</div>';
+                }
+
+                document.getElementById('searchResults').innerHTML = resultsHtml;
+            } catch (error) {
+                document.getElementById('searchResults').innerHTML = `Error performing search: ${error.message}`;
+            }
+        }
+
+        // Helper function to format source text
+        function formatSourceText(text) {
+            if (!text) return "No text available";
+            
+            // Replace new lines with paragraph breaks
+            let formatted = text.replace(/\n\n+/g, '</p><p>');
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Wrap in paragraph if not already
+            if (!formatted.startsWith('<p>')) {
+                formatted = `<p>${formatted}</p>`;
+            }
+            
+            // Format potential list items
+            formatted = formatted.replace(/^[•\-*]\s+(.*?)$/gm, '<li>$1</li>');
+            formatted = formatted.replace(/<li>.*?<\/li>/gs, match => `<ul>${match}</ul>`);
+            
+            // Attempt to identify and format potential headings
+            formatted = formatted.replace(/^([A-Z][A-Z0-9 ]{2,30}):\s*$/gm, '<h4 class="font-semibold text-gray-800 mt-3 mb-2">$1</h4>');
+            
+            // Format potential table-like data with colons
+            formatted = formatted.replace(/([^:]+):\s*([^:]+?)(?=<br>|<\/p>|$)/g, '<span class="font-medium">$1:</span> $2');
+            
+            return formatted;
+        }
+
+        // Helper function to format Markdown text to HTML
+        function formatMarkdown(markdown) {
+            if (!markdown) return "";
+            
+            // First, escape any HTML to prevent injection
+            let html = markdown
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            
+            // Headers
+            html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+            html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+            html = html.replace(/^#### (.*$)/gm, '<h4>$1</h4>');
+            
+            // Bold and italic
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Lists
+            // Process bullet points first
+            html = html.replace(/^\* (.*$)/gm, '<li>$1</li>');
+            let hasUL = /<li>/.test(html);
+            if (hasUL) {
+                html = html.replace(/(<li>.*?<\/li>)(?!\s*<li>)/gs, '<ul>$1</ul>');
+            }
+            
+            // Then process numbered lists
+            html = html.replace(/^\d+\. (.*$)/gm, '<li>$1</li>');
+            let hasOL = /^\d+\. /m.test(markdown);
+            if (hasOL) {
+                // Find groups of list items not already within a <ul> tag
+                html = html.replace(/(<li>.*?<\/li>)(?!\s*<li>|\s*<\/ul>)/gs, match => {
+                    if (!match.includes('<ul>')) {
+                        return '<ol>' + match + '</ol>';
+                    }
+                    return match;
+                });
+            }
+            
+            // Blockquotes
+            html = html.replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>');
+            
+            // Code blocks
+            html = html.replace(/```([^`]*?)```/gs, '<pre><code>$1</code></pre>');
+            html = html.replace(/`([^`]*?)`/g, '<code>$1</code>');
+            
+            // Line breaks and paragraphs
+            html = html.replace(/\n\s*\n/g, '</p><p>');
+            html = html.replace(/\n/g, '<br>');
+            
+            // Wrap in paragraph tags if it doesn't start with a block-level element
+            if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<blockquote') && !html.startsWith('<p')) {
+                html = '<p>' + html + '</p>';
+            }
+            
+            // Handle horizontal rules
+            html = html.replace(/^---$/gm, '<hr>');
+            
+            return html;
+        }
+
+        // Drag and drop functionality
+        const dropZone = document.querySelector('.border-dashed');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('border-blue-500');
+            dropZone.classList.add('bg-blue-50');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-blue-500');
+            dropZone.classList.remove('bg-blue-50');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('fileInput').files = files;
+        }
+
+        // Entry point - initialize on document load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("Document loaded, checking D3.js status");
+            
+            // Verify D3.js is available
+            if (typeof d3 === 'undefined') {
+                console.error("D3.js is not available! Graph functionality will not work.");
+                // Show an error message on the knowledge graph section
+                const errorMessage = `
+                    <div class="p-4 bg-red-100 text-red-700 rounded-lg">
+                        <p class="font-bold mb-2">D3.js Library Not Available</p>
+                        <p>The D3.js library failed to load, which is required for graph visualization.</p>
+                        <p class="mt-2">Please check your internet connection or try a different browser.</p>
+                    </div>
+                `;
+                // Need to wait until DOM is fully ready before accessing elements
+                setTimeout(() => {
+                    const graphContainer = document.getElementById('knowledgeGraph');
+                    if (graphContainer) {
+                        graphContainer.innerHTML = errorMessage;
+                    }
+                }, 100);
+            } else {
+                console.log("D3.js is available (version " + d3.version + ")");
+            }
+            
+            // Add fullscreen toggle functionality
+            document.getElementById('toggleFullscreen').addEventListener('click', toggleFullscreen);
+            
+            // Add sidebar toggle functionality
+            document.getElementById('toggleSidebar').addEventListener('click', toggleSidebar);
+            
+            showSection('upload');
+            
+            // Create floating sidebar toggle that appears when sidebar is hidden
+            createFloatingSidebarToggle();
+        });
+        
+        // Function to create floating sidebar toggle button
+        function createFloatingSidebarToggle() {
+            const floatingToggle = document.createElement('div');
+            floatingToggle.id = 'floatingSidebarToggle';
+            floatingToggle.className = 'sidebar-toggle-float hidden';
+            floatingToggle.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+                </svg>
+            `;
+            floatingToggle.style.top = 'auto';
+            floatingToggle.style.bottom = '20px';
+            floatingToggle.addEventListener('click', toggleSidebar);
+            document.body.appendChild(floatingToggle);
+        }
+        
+        // Function to toggle fullscreen mode for knowledge graph
+        function toggleFullscreen() {
+            const knowledgeSection = document.getElementById('knowledge-section');
+            const fullscreenIcon = document.querySelector('.fullscreen-icon');
+            const exitFullscreenIcon = document.querySelector('.exit-fullscreen-icon');
+            
+            if (knowledgeSection.classList.contains('fullscreen-mode')) {
+                // Exit fullscreen mode
+                knowledgeSection.classList.remove('fullscreen-mode');
+                document.body.style.overflow = 'auto'; // Restore scrolling
+                fullscreenIcon.classList.remove('hidden');
+                exitFullscreenIcon.classList.add('hidden');
+            } else {
+                // Enter fullscreen mode
+                knowledgeSection.classList.add('fullscreen-mode');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling behind
+                fullscreenIcon.classList.add('hidden');
+                exitFullscreenIcon.classList.remove('hidden');
+            }
+            
+            // Resize the canvas to fit the new container size
+            setTimeout(() => {
+                const canvas = document.getElementById('graphCanvas');
+                if (canvas) {
+                    const container = document.getElementById('knowledgeGraph');
+                    canvas.width = container.clientWidth - 2;
+                    canvas.height = container.clientHeight - 2;
+                    renderGraph(); // Re-render the graph with new dimensions
+                }
+            }, 100);
+        }
+        
+        // Function to toggle sidebar visibility
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.bg-gray-800.w-56');
+            const mainContent = document.querySelector('.flex-1.p-6');
+            const floatingToggle = document.getElementById('floatingSidebarToggle');
+            const sidebarToggleButton = document.getElementById('toggleSidebar');
+            
+            if (sidebar.classList.contains('sidebar-collapsed')) {
+                // Show sidebar
+                sidebar.classList.remove('sidebar-collapsed');
+                mainContent.classList.remove('main-content-expanded');
+                floatingToggle.classList.add('hidden');
+                // Update icon to show collapse
+                sidebarToggleButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+                    </svg>
+                `;
+                sidebarToggleButton.title = "Hide Sidebar";
+            } else {
+                // Hide sidebar
+                sidebar.classList.add('sidebar-collapsed');
+                mainContent.classList.add('main-content-expanded');
+                floatingToggle.classList.remove('hidden');
+                // Update floating toggle position to bottom
+                floatingToggle.style.top = 'auto';
+                floatingToggle.style.bottom = '20px';
+            }
+            
+            // Resize the canvas to fit the new container size
+            setTimeout(() => {
+                const canvas = document.getElementById('graphCanvas');
+                if (canvas) {
+                    const container = document.getElementById('knowledgeGraph');
+                    canvas.width = container.clientWidth - 2;
+                    canvas.height = container.clientHeight - 2;
+                    renderGraph(); // Re-render the graph with new dimensions
+                }
+            }, 300); // Wait for transition to complete
+        }
+
+        async function deleteKnowledgeGraph() {
+            // Show confirmation dialog
+            if (!confirm('Are you sure you want to delete the entire knowledge base? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/knowledge-graph', {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete knowledge graph');
+                }
+                
+                const result = await response.json();
+                
+                // Show success message
+                const graphContainer = document.getElementById('knowledgeGraph');
+                graphContainer.innerHTML = `
+                    <div class="flex h-full items-center justify-center">
+                        <div class="text-center">
+                            <svg class="mx-auto h-12 w-12 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <p class="mt-3 text-lg font-medium text-green-600">Knowledge base deleted successfully</p>
+                            <p class="mt-2 text-gray-500">Upload new documents to rebuild the knowledge base</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Clear any existing search results
+                document.getElementById('searchResults').innerHTML = '';
+                
+            } catch (error) {
+                console.error('Error deleting knowledge graph:', error);
+                alert('Error deleting knowledge graph: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html> 

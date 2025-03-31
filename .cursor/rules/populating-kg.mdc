@@ -1,0 +1,12 @@
+---
+description: This rules file shows how to incrementally update a knowledge graph using langchain
+globs: 
+alwaysApply: false
+---
+Refer this page on how to use Langchain and Neo4j together https://python.langchain.com/docs/how_to/graph_constructing/
+
+Name of neo4j database is research_dbms
+password is research_dbms
+
+
+

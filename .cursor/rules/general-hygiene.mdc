@@ -1,0 +1,20 @@
+---
+description: This rule file tells the general programming standards which should be followed.
+globs: 
+---
+SOME OTHER GENERAL RULES:
+1. load env variables from existing .env file
+2. always use gpt-4o-mini model
+3. try and follow UI design and styles as on @https://www.fidelity.co.uk/ 
+4. map the static folder to the /static route, create static folder if it does not exist
+5. fastapi endpoint to correctly handle the JSON request body.
+6. have termcolor printing every step of the way to inform the user
+7. every time we use with open use encoding="utf-8"
+8. always use try except blocks with descriptive prints where necessary. have informative error printing(incuding the error itself)
+9. lets implement every project with seperations of concerns in mind
+10. create and update requirements.txt without version numbers
+11. ALWAYS MAKE SURE TO AWAIT ALL ASYNC TASKS
+12. make sure all async calls are awaited in theie respective functions
+13. add debug prints every every logical step of the code with different colors for different levels of the code
+14. You must always design the fastapi server to launch the app in the browser while launching the server.
+15. index.html form should properly send JSON data:

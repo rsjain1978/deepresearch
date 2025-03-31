@@ -1,0 +1,12 @@
+Web interface which has three sections or columns
+users initiates document upload from first section and calls API
+API call text extraction agent, which calls chunking agent to chunk text, then calls vector db agent which puts chunks in vector db, which calls knowledge graph agent to update knowledge graph
+once data is uploaded, section 2 is updated with content of knowledge graph. for this api is called
+user can search by putting search term in third section which calls search API
+search api does the following:
+- calls openai gpt-4o-mini to create 5 similar search terms
+- for each search term goes to vector db to pull content (all in parallel)
+- for each search term goes to knowledge graph to pull content (all in parallel)
+- Re-ranks the most relevant outcomes (using langchain)
+- gives best results to OpenAI gpt-4o to generate answer
+- generates a formatted answer which is shown on UI.

@@ -1,0 +1,19 @@
+---
+description: This rule file shows we should langgraph to create a agentic workflow
+globs: 
+---
+
+You use langgraph to create a workflow in agent_exp.py, sample code below
+
+##### SAMPLE CODE FOR MAKING OPENAI LLM CALLS ####
+message = [
+    AIMessage(content="How can I?"),
+    HumanMessage(content="Hello, how are you?")
+]
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(model="gpt-4o-mini")
+response = llm.invoke(message)
+
+check [langraph-kb.txt](mdc:langraph-kb.txt) for specification on how to create a workflow with langchain
+
+always create a generic and modular LLM call function which you can reuse for different tasks. 

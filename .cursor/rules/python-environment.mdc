@@ -1,0 +1,7 @@
+---
+description: This rules file lists down the python virtual environment to be used
+globs: 
+---
+For langgraph based agentic applications use 'langgraph' virtual environment.
+
+conda activate langgraph

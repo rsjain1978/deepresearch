@@ -1,0 +1,51 @@
+---
+description: This rule file shows how we extract text from documents.
+globs: 
+alwaysApply: false
+---
+First convert each page of the document into an image.
+
+Once you have the image use OpenAI gpt-4o model to extract text from the image.
+
+Refer to this class for converting page into an image
+class Extractor:
+        
+    def convert_pdf_to_images(self, pdf_path: str) -> List[Image.Image]:
+        """Convert PDF pages to images with error handling and save to folder."""
+        try:
+            output_dir = Path('extracted_pages')
+            
+            # Check if directory exists and contains images
+            if output_dir.exists():
+
+                logger.info("Existing images found. Loading images...")
+
+                existing_images = sorted(output_dir.glob('page_*.png'))
+                if existing_images:
+                    logger.info(f"Found {len(existing_images)} existing images in {output_dir}")
+                    # Load existing images
+                    images = [Image.open(img_path) for img_path in existing_images]
+                    return images
+            
+            # If no existing images found, create directory and convert PDF
+            output_dir.mkdir(exist_ok=True)
+            
+            # Convert PDF to images
+            logger.info("No existing images found. Converting PDF to images...")
+            images = convert_from_path(
+                pdf_path,
+                dpi=300,  # Higher DPI for better quality
+                fmt="PNG"
+            )
+            logger.info(f"Successfully converted PDF to {len(images)} images")
+            
+            # Save each image
+            for i, image in enumerate(images, 1):
+                image_path = output_dir / f"page_{i:03d}.png"
+                image.save(image_path, "PNG", optimize=True)
+                logger.info(f"Saved page {i} to {image_path}")
+                
+            return images
+        except Exception as e:
+            logger.error(f"Error converting PDF to images: {str(e)}")
+            raise

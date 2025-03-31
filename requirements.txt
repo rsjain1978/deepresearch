@@ -1,0 +1,21 @@
+fastapi
+uvicorn
+python-dotenv
+langchain
+langchain-openai
+langchain-community
+langgraph
+openai
+tavily-python
+termcolor
+python-multipart
+chromadb
+pydantic
+PyMuPDF
+Pillow
+neo4j
+langchain-neo4j>=0.0.5
+spacy>=3.0.0
+scikit-learn>=1.0.0
+sentence-transformers>=2.2.0
+# After installing requirements, run: python -m spacy download en_core_web_sm 
